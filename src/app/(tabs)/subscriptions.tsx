@@ -1,30 +1,105 @@
-import { Text, View, StyleSheet } from "react-native";
 import { styled } from "nativewind";
-import { SafeAreaView as RNSafeAreaView } from "react-native-safe-area-context";
+import { useState } from "react";
+import {
+  Button,
+  Platform,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import { StatusBar, StatusBarStyle } from "expo-status-bar";
+import {
+  SafeAreaView as RNSafeAreaView,
+  SafeAreaProvider,
+} from "react-native-safe-area-context";
 const SafeAreaView = styled(RNSafeAreaView);
+const STYLES = ["inverted", "auto", "dark", "light"] as const;
+const TRANSITIONS = ["fade", "slide", "none"] as const;
 
 const subscriptions = () => {
+  const [hidden, setHidden] = useState(false);
+  const [statusBarStyle, setStatusBarStyle] = useState<StatusBarStyle>(STYLES[0]);
+  const [statusBarTransition, setStatusBarTransition] = useState<
+    "fade" | "slide" | "none"
+  >(TRANSITIONS[0]);
+
+  const changeStatusBarVisibility = () => setHidden(!hidden);
+
+  const changeStatusBarStyle = () => {
+    const styleId = STYLES.indexOf(statusBarStyle) + 1;
+    if (styleId === STYLES.length) {
+      setStatusBarStyle(STYLES[0]);
+    } else {
+      setStatusBarStyle(STYLES[styleId]);
+    }
+  };
+
+  const changeStatusBarTransition = () => {
+    const transition = TRANSITIONS.indexOf(statusBarTransition) + 1;
+    if (transition === TRANSITIONS.length) {
+      setStatusBarTransition(TRANSITIONS[0]);
+    } else {
+      setStatusBarTransition(TRANSITIONS[transition]);
+    }
+  };
+
   return (
-    <SafeAreaView className="flex-1 bg-background p-5">
-      <Text>subscriptions</Text>
-      <View>
-        
-        <Text style={styles.baseText}>I am bold loooooooooooooooong</Text>
-        <Text style={styles.innerText}>and red</Text>
-      </View>
-    </SafeAreaView>
+    <SafeAreaProvider>
+      <SafeAreaView style={styles.container}>
+        <StatusBar
+          animated={true}
+          style={statusBarStyle}
+          hideTransitionAnimation={statusBarTransition}
+          hidden={hidden}
+        />
+        <Text style={styles.textStyle}>
+          StatusBar Visibility:{"\n"}
+          {hidden ? "Hidden" : "Visible"}
+        </Text>
+        <Text style={styles.textStyle}>
+          StatusBar Style:{"\n"}
+          {statusBarStyle}
+        </Text>
+        {Platform.OS === "ios" ? (
+          <Text style={styles.textStyle}>
+            StatusBar Transition:{"\n"}
+            {statusBarTransition}
+          </Text>
+        ) : null}
+        <View style={styles.buttonsContainer}>
+          <Button
+            title="Toggle StatusBar"
+            onPress={changeStatusBarVisibility}
+          />
+          <Button
+            title="Change StatusBar Style"
+            onPress={changeStatusBarStyle}
+          />
+          {Platform.OS === "ios" ? (
+            <Button
+              title="Change StatusBar Transition"
+              onPress={changeStatusBarTransition}
+            />
+          ) : null}
+        </View>
+      </SafeAreaView>
+    </SafeAreaProvider>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    justifyContent: "center",
+    backgroundColor: "#ECF0F1",
   },
-  baseText: {
-    fontWeight: "bold",
+  buttonsContainer: {
+    padding: 10,
+    gap: 10,
   },
-  innerText: {
-    color: "red",
+  textStyle: {
+    textAlign: "center",
+    marginBottom: 8,
   },
 });
 
