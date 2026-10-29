@@ -14,7 +14,7 @@ import { formatCurrency } from "@/lib/utils";
 import dayjs from "dayjs";
 import { styled } from "nativewind";
 import { useState } from "react";
-import { FlatList, Image, Text, View } from "react-native";
+import { FlatList, Image, Text, View, StatusBar } from "react-native";
 import { SafeAreaView as RNSafeAreaView } from "react-native-safe-area-context";
 
 const SafeAreaView = styled(RNSafeAreaView);
@@ -26,6 +26,11 @@ export default function Index() {
 
   return (
     <SafeAreaView className="flex-1 bg-white p-5">
+      <StatusBar
+        animated={true}
+        barStyle="dark-content"
+        showHideTransition="slide"
+      />
       <FlatList
         ListHeaderComponent={() => (
           <>
