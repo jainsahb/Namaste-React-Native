@@ -1,24 +1,22 @@
 import { useAuth, useSignUp } from "@clerk/expo";
-import { Link } from "expo-router";
+import { Link, router } from "expo-router";
 import { styled } from "nativewind";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
-  Button,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
-  StyleSheet,
+  ScrollView,
   Text,
   TextInput,
+  TouchableOpacity,
   TouchableWithoutFeedback,
   View,
 } from "react-native";
-import {
-  SafeAreaView as RNSafeAreaView,
-  SafeAreaProvider,
-} from "react-native-safe-area-context";
+import { SafeAreaView as RNSafeAreaView } from "react-native-safe-area-context";
 
 const SafeAreaView = styled(RNSafeAreaView);
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const SignUp = () => {
   const { isLoaded, isSignedIn } = useAuth();
@@ -27,157 +25,275 @@ const SignUp = () => {
   const [emailAddress, setEmailAddress] = useState("");
   const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
+  const [formError, setFormError] = useState("");
+
+  useEffect(() => {
+    if (isLoaded && isSignedIn) {
+      router.replace("/(tabs)");
+    }
+  }, [isLoaded, isSignedIn]);
 
   const handleSubmit = async () => {
-    const { error } = await signUp.password({ emailAddress, password });
-    if (error) {
-      throw new Error(`Unable to Create your account ${error.message}`);
+    const trimmedEmail = emailAddress.trim();
+    const trimmedPassword = password.trim();
+
+    if (!trimmedEmail || !trimmedPassword) {
+      setFormError("Please provide an email and a password.");
       return;
     }
 
-    const { error: sendError } = await signUp.verifications.sendEmailCode();
-    if (sendError) {
-      throw new Error(`Unable to Create your account ${sendError.message}`);
+    if (!emailRegex.test(trimmedEmail)) {
+      setFormError("Please enter a valid email address.");
       return;
     }
-    setIsVerifying(true);
+
+    if (trimmedPassword.length < 8) {
+      setFormError("Use at least 8 characters for your password.");
+      return;
+    }
+
+    setFormError("");
+    setIsSubmitting(true);
+
+    try {
+      const result = await signUp.password({
+        emailAddress: trimmedEmail,
+        password: trimmedPassword,
+      });
+
+      if (result.error) {
+        throw new Error(result.error.message);
+      }
+
+      const sendCodeResult = await signUp.verifications.sendEmailCode();
+      if (sendCodeResult.error) {
+        throw new Error(sendCodeResult.error.message);
+      }
+
+      setIsVerifying(true);
+    } catch (error: any) {
+      const message =
+        error?.message ||
+        "We couldn’t create your account. Please try again.";
+      setFormError(message);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleVerify = async () => {
-    const { error } = await signUp.verifications.verifyEmailCode({ code });
-    if (error) {
-      // error need to be handled
-      throw new Error(`Unable to Verify your credentials ${error.message}`);
+    const trimmedCode = code.trim();
+
+    if (!trimmedCode) {
+      setFormError("Enter the 6-digit verification code sent to your email.");
+      return;
     }
 
-    const { error: finalizeError } = await signUp.finalize();
-    if (finalizeError) {
-      // error need to be handled
-      throw new Error(`Unable to Verify your credentials ${finalizeError}`);
+    setFormError("");
+    setIsSubmitting(true);
+
+    try {
+      const verifyResult = await signUp.verifications.verifyEmailCode({
+        code: trimmedCode,
+      });
+
+      if (verifyResult.error) {
+        throw new Error(verifyResult.error.message);
+      }
+
+      const finalizeResult = await signUp.finalize();
+      if (finalizeResult.error) {
+        throw new Error(finalizeResult.error.message);
+      }
+
+      if (signUp.status === "complete") {
+        router.replace("/(tabs)");
+        return;
+      }
+
+      setFormError("Your account is ready, but we couldn’t start the session yet. Please sign in.");
+    } catch (error: any) {
+      const message =
+        error?.message ||
+        "We couldn’t verify your code. Please check the code and try again.";
+      setFormError(message);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   if (!isLoaded) {
     return null;
   }
-  if (isSignedIn) {
-    return (
-      <View style={styles.container}>
-        <Link href="/(auth)/sign-up">
-          <Text>You're signed in</Text>
-        </Link>
-        <Link href="/(tabs)" className="mt-4 rounded bg-primary text-white p-4">
-          Go to Home
-        </Link>
-      </View>
-    );
-  }
 
   if (isVerifying) {
     return (
-      <View style={styles.container}>
-        <TextInput
-          style={styles.input}
-          value={code}
-          placeholder="Enter your verification code"
-          onChangeText={setCode}
-          keyboardType="numeric"
-        />
-        <Button title="Verify" onPress={handleVerify} />
-      </View>
+      <SafeAreaView className="auth-safe-area">
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          className="auth-screen"
+        >
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+            <ScrollView
+              className="auth-scroll"
+              keyboardShouldPersistTaps="handled"
+              contentContainerClassName="auth-content"
+            >
+              <View className="auth-brand-block">
+                <View className="auth-logo-wrap">
+                  <View className="auth-logo-mark">
+                    <Text className="auth-logo-mark-text">R</Text>
+                  </View>
+                  <View>
+                    <Text className="auth-wordmark">Recurly</Text>
+                    <Text className="auth-wordmark-sub">Smart subscriptions</Text>
+                  </View>
+                </View>
+              </View>
+
+              <View className="items-center">
+                <Text className="auth-title">Verify your email</Text>
+                <Text className="auth-subtitle">
+                  Enter the secure code we sent to {emailAddress.trim()}.
+                </Text>
+              </View>
+
+              <View className="auth-card">
+                <View className="auth-form">
+                  <View className="auth-field">
+                    <Text className="auth-label">Verification code</Text>
+                    <TextInput
+                      value={code}
+                      placeholder="123456"
+                      onChangeText={setCode}
+                      keyboardType="number-pad"
+                      maxLength={6}
+                      className={`auth-input ${formError ? "auth-input-error" : ""}`}
+                      placeholderTextColor="#6B7280"
+                      accessibilityLabel="Verification code"
+                    />
+                  </View>
+
+                  {formError ? <Text className="auth-error">{formError}</Text> : null}
+
+                  <TouchableOpacity
+                    onPress={handleVerify}
+                    disabled={isSubmitting}
+                    className={`auth-button ${isSubmitting ? "auth-button-disabled" : ""}`}
+                    accessibilityRole="button"
+                  >
+                    <Text className="auth-button-text">
+                      {isSubmitting ? "Verifying..." : "Verify account"}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    onPress={() => setIsVerifying(false)}
+                    className="auth-secondary-button"
+                    accessibilityRole="button"
+                  >
+                    <Text className="auth-secondary-button-text">Back to sign up</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </ScrollView>
+          </TouchableWithoutFeedback>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaProvider>
-      <SafeAreaView className="flex-1 bg-background p-5">
-        <Text>Sign-Up</Text>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          style={styles.container}
-        >
-          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-            <View style={styles.inner}>
-              <TextInput
-                value={emailAddress}
-                autoCapitalize="none"
-                placeholder="Email"
-                onChangeText={setEmailAddress}
-                keyboardType="email-address"
-                style={styles.input}
-              />
-              <TextInput
-                value={password}
-                autoCapitalize="none"
-                placeholder="Password"
-                onChangeText={setPassword}
-                secureTextEntry={true}
-                style={styles.input}
-              />
-              <View style={styles.btnContainer}>
-                <Button title="Submit" onPress={handleSubmit} />
+    <SafeAreaView className="auth-safe-area">
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        className="auth-screen"
+      >
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <ScrollView
+            className="auth-scroll"
+            keyboardShouldPersistTaps="handled"
+            contentContainerClassName="auth-content"
+          >
+            <View className="auth-brand-block">
+              <View className="auth-logo-wrap">
+                <View className="auth-logo-mark">
+                  <Text className="auth-logo-mark-text">R</Text>
+                </View>
+                <View>
+                  <Text className="auth-wordmark">Recurly</Text>
+                  <Text className="auth-wordmark-sub">Smart subscriptions</Text>
+                </View>
               </View>
-              <Link
-                className="mt-4 rounded bg-primary text-white p-4"
-                href="/(auth)/sign-up"
-              >
-                Sign In
+            </View>
+
+            <View className="items-center">
+              <Text className="auth-title">Create your account</Text>
+              <Text className="auth-subtitle">
+                Start tracking every membership, renewal, and spend with clarity.
+              </Text>
+            </View>
+
+            <View className="auth-card">
+              <View className="auth-form">
+                <View className="auth-field">
+                  <Text className="auth-label">Email address</Text>
+                  <TextInput
+                    value={emailAddress}
+                    placeholder="name@example.com"
+                    onChangeText={setEmailAddress}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    keyboardType="email-address"
+                    className={`auth-input ${formError ? "auth-input-error" : ""}`}
+                    placeholderTextColor="#6B7280"
+                    accessibilityLabel="Email address"
+                  />
+                </View>
+
+                <View className="auth-field">
+                  <Text className="auth-label">Password</Text>
+                  <TextInput
+                    value={password}
+                    placeholder="Create a secure password"
+                    onChangeText={setPassword}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    secureTextEntry
+                    className={`auth-input ${formError ? "auth-input-error" : ""}`}
+                    placeholderTextColor="#6B7280"
+                    accessibilityLabel="Password"
+                  />
+                </View>
+
+                {formError ? <Text className="auth-error">{formError}</Text> : null}
+
+                <TouchableOpacity
+                  onPress={handleSubmit}
+                  disabled={isSubmitting}
+                  className={`auth-button ${isSubmitting ? "auth-button-disabled" : ""}`}
+                  accessibilityRole="button"
+                >
+                  <Text className="auth-button-text">
+                    {isSubmitting ? "Creating account..." : "Create account"}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <View className="auth-link-row">
+              <Text className="auth-link-copy">Already have an account?</Text>
+              <Link href="/(auth)/sign-in">
+                <Text className="auth-link">Sign in</Text>
               </Link>
             </View>
-          </TouchableWithoutFeedback>
-        </KeyboardAvoidingView>
-      </SafeAreaView>
-    </SafeAreaProvider>
-    // <View>
-    //   <Text>SignUp</Text>
-    //   <Link href="/(auth)/sign-up">Sign In</Link>
-    //   <Link href="/(tabs)" className="mt-4 rounded bg-primary text-white p-4">Go to Home</Link>
-    // </View>
+          </ScrollView>
+        </TouchableWithoutFeedback>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 };
-
-// const styles = StyleSheet.create({
-//   container: {
-//     flex: 1,
-//     padding: 20,
-//     gap: 12,
-//     justifyContent: "center",
-//   },
-//   input: {
-//     borderWidth: 1,
-//     borderColor: "#ccc",
-//     borderRadius: 8,
-//     padding: 12,
-//     fontSize: 16,
-//   },
-// });
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  inner: {
-    padding: 24,
-    flex: 1,
-    justifyContent: "space-around",
-  },
-  header: {
-    fontFamily: "sans-semibold",
-    fontSize: 36,
-    marginBottom: 48,
-  },
-  input: {
-    height: 40,
-    borderColor: "#000000",
-    borderBottomWidth: 1,
-    marginBottom: 1,
-  },
-  btnContainer: {
-    backgroundColor: "white",
-    gap: 15,
-    marginTop: 12,
-  },
-});
 
 export default SignUp;

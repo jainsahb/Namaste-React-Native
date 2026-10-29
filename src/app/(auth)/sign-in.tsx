@@ -1,111 +1,186 @@
-import { Link } from "expo-router";
+import { useAuth, useSignIn } from "@clerk/expo";
+import { Link, router } from "expo-router";
 import { styled } from "nativewind";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
-  Button,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
   StatusBar,
-  StyleSheet,
   Text,
   TextInput,
+  TouchableOpacity,
   TouchableWithoutFeedback,
   View,
 } from "react-native";
 import { SafeAreaView as RNSafeAreaView } from "react-native-safe-area-context";
 
 const SafeAreaView = styled(RNSafeAreaView);
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const SignIn = () => {
-  const statusBarStyle = "dark-content"; // ["default", "dark-content", "light-content"] (**"auto" not supported by react-native)
-  const statusBarTransition = "slide"; // ["fade", "slide", "none"]
+  const { isLoaded, isSignedIn } = useAuth();
+  const { signIn } = useSignIn();
 
+  const [emailAddress, setEmailAddress] = useState("");
+  const [password, setPassword] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formError, setFormError] = useState("");
+
+  useEffect(() => {
+    if (isLoaded && isSignedIn) {
+      router.replace("/(tabs)");
+    }
+  }, [isLoaded, isSignedIn]);
+
+  const handleSignIn = async () => {
+    const trimmedEmail = emailAddress.trim();
+    const trimmedPassword = password.trim();
+
+    if (!trimmedEmail || !trimmedPassword) {
+      setFormError("Email and password are required.");
+      return;
+    }
+
+    if (!emailRegex.test(trimmedEmail)) {
+      setFormError("Enter a valid email address.");
+      return;
+    }
+
+    setFormError("");
+    setIsSubmitting(true);
+
+    try {
+      const result = await signIn.create({
+        identifier: trimmedEmail,
+        password: trimmedPassword,
+      });
+
+      if (result.error) {
+        throw new Error(`Hmm... ${result.error.message}`);
+      }
+
+      if (signIn.status === "complete") {
+        router.replace("/(tabs)");
+        return;
+      }
+
+      setFormError(
+        "Your sign-in is still pending. Please try again in a moment.",
+      );
+    } catch (error: any) {
+      const message =
+        error?.errors?.[0]?.longMessage ||
+        error?.message ||
+        "We couldn’t sign you in. Please check your details and try again.";
+      setFormError(message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (!isLoaded) {
+    return null;
+  }
 
   return (
-    <SafeAreaView className="flex-1 bg-background p-5">
+    <SafeAreaView className="auth-safe-area">
       <StatusBar
         animated={true}
-        barStyle={statusBarStyle}
-        showHideTransition={statusBarTransition}
+        barStyle="dark-content"
+        showHideTransition="slide"
       />
-      {/* <View>
-        <Text>SignIn</Text>
-        <Link href="/(auth)/sign-up">Create Account</Link>
-        <Link href="/(tabs)" className="mt-4 rounded bg-primary text-white p-4">
-          Go to Home
-        </Link>
-      </View> */}
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={styles.container}
+        className="auth-screen"
       >
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-          <View style={styles.inner}>
-            <View>
-              <Text
-                numberOfLines={1}
-                adjustsFontSizeToFit={true}
-                minimumFontScale={0.5}
-                style={styles.header}
-              >
-                Welcome to Recurly,
+          <ScrollView
+            className="auth-scroll"
+            keyboardShouldPersistTaps="handled"
+            contentContainerClassName="auth-content"
+          >
+            <View className="auth-brand-block">
+              <View className="auth-logo-wrap">
+                <View className="auth-logo-mark">
+                  <Text className="auth-logo-mark-text">R</Text>
+                </View>
+                <View>
+                  <Text className="auth-wordmark">Recurly</Text>
+                  <Text className="auth-wordmark-sub">Smart subscriptions</Text>
+                </View>
+              </View>
+            </View>
+
+            <View className="items-center">
+              <Text className="auth-title">Welcome back</Text>
+              <Text className="auth-subtitle">
+                Keep every renewal, recurring payment, and budget decision in
+                one place.
               </Text>
             </View>
-            <TextInput
-              placeholder="Email"
-              autoCapitalize="none"
-              autoCorrect={false}
-              autoFocus={true}
-              style={styles.textInput}
-            />
-            <TextInput
-              placeholder="Password"
-              autoCapitalize="none"
-              autoCorrect={false}
-              style={styles.textInput}
-            />
-            <View style={styles.btnContainer}>
-              <Button title="Sign-in" color="#2196F3" onPress={() => null} />
-              <Link className="mt-4 rounded bg-primary text-white p-4 bg-#007aff" href="/(auth)/sign-up">Create Account</Link>
+
+            <View className="auth-card">
+              <View className="auth-form">
+                <View className="auth-field">
+                  <Text className="auth-label">Email address</Text>
+                  <TextInput
+                    value={emailAddress}
+                    placeholder="name@example.com"
+                    onChangeText={setEmailAddress}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    keyboardType="email-address"
+                    className={`auth-input ${formError ? "auth-input-error" : ""}`}
+                    placeholderTextColor="#6B7280"
+                    accessibilityLabel="Email address"
+                  />
+                </View>
+
+                <View className="auth-field">
+                  <Text className="auth-label">Password</Text>
+                  <TextInput
+                    value={password}
+                    placeholder="Enter your password"
+                    onChangeText={setPassword}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    secureTextEntry
+                    className={`auth-input ${formError ? "auth-input-error" : ""}`}
+                    placeholderTextColor="#6B7280"
+                    accessibilityLabel="Password"
+                  />
+                </View>
+
+                {formError ? (
+                  <Text className="auth-error">{formError}</Text>
+                ) : null}
+
+                <TouchableOpacity
+                  onPress={handleSignIn}
+                  disabled={isSubmitting}
+                  className={`auth-button ${isSubmitting ? "auth-button-disabled" : ""}`}
+                  accessibilityRole="button"
+                >
+                  <Text className="auth-button-text">
+                    {isSubmitting ? "Signing in..." : "Sign in"}
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
-            <Link
-              href="/(tabs)"
-              className="mt-4 rounded bg-primary text-white p-4"
-            >
-              Go to Home
-            </Link>
-          </View>
+
+            <View className="auth-link-row">
+              <Text className="auth-link-copy">New to Recurly?</Text>
+              <Link href="/(auth)/sign-up">
+                <Text className="auth-link">Create account</Text>
+              </Link>
+            </View>
+          </ScrollView>
         </TouchableWithoutFeedback>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  inner: {
-    padding: 24,
-    flex: 1,
-    justifyContent: "space-around",
-  },
-  header: {
-    fontFamily: "sans-semibold",
-    fontSize: 36,
-    marginBottom: 48,
-  },
-  textInput: {
-    height: 40,
-    borderColor: "#000000",
-    borderBottomWidth: 1,
-    marginBottom: 1,
-  },
-  btnContainer: {
-    backgroundColor: "white",
-    gap: 15,
-  },
-});
 
 export default SignIn;

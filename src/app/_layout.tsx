@@ -1,17 +1,52 @@
 import "@/global.css";
-import { ClerkProvider } from "@clerk/expo";
+import { ClerkProvider, useAuth, useClerk } from "@clerk/expo";
 import { tokenCache } from "@clerk/expo/token-cache";
 import { useFonts } from "expo-font";
-import { SplashScreen, Stack } from "expo-router";
+import { router, SplashScreen, Stack, usePathname } from "expo-router";
 import { useEffect } from "react";
 
-// Without calling  SplashScreen.preventAutoHideAsync() at module laod time, the splash screen may auto-hide before fonts 
-// finish loading, causing a visual flash. The standard Expo pattern requires preventing auto-hide first.
 SplashScreen.preventAutoHideAsync();
 
-const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!; 
+const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!;
+
 if (!publishableKey) {
   throw new Error("Add your Clerk Publishable Key to the .env file");
+}
+
+function AppNavigator() {
+  const { isLoaded, isSignedIn } = useAuth();
+  const { signOut } = useClerk();
+  const pathname = usePathname();
+
+  useEffect(() => {
+    if (!isLoaded) {
+      return;
+    }
+
+    const isAuthRoute =
+      pathname === "/onboarding" ||
+      pathname === "/" ||
+      pathname === "/sign-in" ||
+      pathname === "/sign-up" ||
+      pathname.startsWith("/(auth)");
+
+    if (!isSignedIn && !isAuthRoute) {
+      router.replace("/onboarding");
+      return;
+    }
+
+    if (isSignedIn && isAuthRoute && pathname !== "/") {
+      router.replace("/(tabs)");
+    }
+  }, [isLoaded, isSignedIn, pathname]);
+
+  useEffect(() => {
+    if (pathname === "/onboarding" && isLoaded && isSignedIn) {
+      router.replace("/(tabs)");
+    }
+  }, [isLoaded, isSignedIn, pathname]);
+
+  return <Stack screenOptions={{ headerShown: false }} />;
 }
 
 export default function RootLayout() {
@@ -30,11 +65,13 @@ export default function RootLayout() {
     }
   }, [fontsLoaded]);
 
-  if (!fontsLoaded) return null;
+  if (!fontsLoaded) {
+    return null;
+  }
 
   return (
     <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
-      <Stack screenOptions={{ headerShown: false }} />
+      <AppNavigator />
     </ClerkProvider>
   );
 }
