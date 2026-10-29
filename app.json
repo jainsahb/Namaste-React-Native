@@ -31,20 +31,27 @@
           "backgroundColor": "#ffffff",
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 76,
-          "resizeMode" : "contain",
+          "resizeMode": "contain",
           "dark": {
             "backgroundColor": "#ffffff"
           }
         }
       ],
-      ["expo-font", { "fonts": [
-        "./assets/fonts/PlusJakartaSans-Light.ttf",
-        "./assets/fonts/PlusJakartaSans-Regular.ttf",
-        "./assets/fonts/PlusJakartaSans-Medium.ttf",
-        "./assets/fonts/PlusJakartaSans-Bold.ttf",
-        "./assets/fonts/PlusJakartaSans-SemiBold.ttf",
-        "./assets/fonts/PlusJakartaSans-ExtraBold.ttf"
-      ]}]
+      [
+        "expo-font",
+        {
+          "fonts": [
+            "./assets/fonts/PlusJakartaSans-Light.ttf",
+            "./assets/fonts/PlusJakartaSans-Regular.ttf",
+            "./assets/fonts/PlusJakartaSans-Medium.ttf",
+            "./assets/fonts/PlusJakartaSans-Bold.ttf",
+            "./assets/fonts/PlusJakartaSans-SemiBold.ttf",
+            "./assets/fonts/PlusJakartaSans-ExtraBold.ttf"
+          ]
+        }
+      ],
+      "@clerk/expo",
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true,

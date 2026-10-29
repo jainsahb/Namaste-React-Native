@@ -67,11 +67,7 @@ const SignIn = () => {
             />
             <View style={styles.btnContainer}>
               <Button title="Sign-in" color="#2196F3" onPress={() => null} />
-              <Button
-                title="Create Account"
-                color="#007AFF"
-                onPress={() => null}
-              />
+              <Link className="mt-4 rounded bg-primary text-white p-4 bg-#007aff" href="/(auth)/sign-up">Create Account</Link>
             </View>
             <Link
               href="/(tabs)"
@@ -109,7 +105,6 @@ const styles = StyleSheet.create({
   btnContainer: {
     backgroundColor: "white",
     gap: 15,
-    marginTop: 12,
   },
 });
 
