@@ -1,5 +1,5 @@
 import { useAuth, useSignIn } from "@clerk/expo";
-import { Link, router } from "expo-router";
+import { Link, useRouter, type Href } from "expo-router";
 import { styled } from "nativewind";
 import { useEffect, useState } from "react";
 import {
@@ -22,6 +22,7 @@ const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const SignIn = () => {
   const { isLoaded, isSignedIn } = useAuth();
   const { signIn } = useSignIn();
+  const router = useRouter();
 
   const [emailAddress, setEmailAddress] = useState("");
   const [password, setPassword] = useState("");
@@ -35,6 +36,8 @@ const SignIn = () => {
   }, [isLoaded, isSignedIn]);
 
   const handleSignIn = async () => {
+    if (!isLoaded) return;
+
     const trimmedEmail = emailAddress.trim();
     const trimmedPassword = password.trim();
 
@@ -52,17 +55,31 @@ const SignIn = () => {
     setIsSubmitting(true);
 
     try {
+      // Step 1: Create the sign-in attempt
       const result = await signIn.create({
         identifier: trimmedEmail,
+      });
+
+      // Step 2: Submit the password
+      const { error } = await signIn.password({
         password: trimmedPassword,
       });
 
-      if (result.error) {
-        throw new Error(`Hmm... ${result.error.message}`);
+      if (error) {
+        throw new Error(`Hmm... ${error.message}`);
       }
 
       if (signIn.status === "complete") {
-        router.replace("/(tabs)");
+        // Step 4: Activate/finalize the session
+        await signIn.finalize({
+          navigate: ({ session, decorateUrl }) => {
+            // Handle  any pending session task  separately
+            if (session?.currentTask) return;
+
+            // Step 5: Navigate after session activation
+            router.replace(decorateUrl("/(tabs)") as Href);
+          },
+        });
         return;
       }
 
