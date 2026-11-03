@@ -2,15 +2,23 @@ import { useClerk, useUser } from "@clerk/expo";
 import { styled } from "nativewind";
 import { Pressable, StatusBar, Text, View } from "react-native";
 import { SafeAreaView as RNSafeAreaView } from "react-native-safe-area-context";
+import { usePostHog } from "posthog-react-native";
+
+import { posthogLog } from "@/src/lib/posthog-logs";
+
 const SafeAreaView = styled(RNSafeAreaView);
 
-const settings = () => {
+const Settings = () => {
   const { signOut } = useClerk();
   const { user } = useUser();
+  const posthog = usePostHog();
 
   const handleSignOut = async () => {
     try {
       await signOut();
+      posthogLog.info("sign_out_completed", { flow: "authentication" });
+      posthog?.capture("sign_out_completed");
+      posthog?.reset();
     } catch (error) {
       console.error("Sign-out failed:", error);
     }
@@ -87,4 +95,4 @@ const settings = () => {
   );
 };
 
-export default settings;
+export default Settings;
