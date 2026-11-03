@@ -1,9 +1,23 @@
 import "@/global.css";
-import { ClerkProvider, useAuth, useClerk } from "@clerk/expo";
+import { ClerkProvider, useAuth, useUser } from "@clerk/expo";
 import { tokenCache } from "@clerk/expo/token-cache";
 import { useFonts } from "expo-font";
 import { router, SplashScreen, Stack, usePathname } from "expo-router";
+import { PostHogProvider } from "posthog-react-native";
 import { useEffect } from "react";
+
+import { NotificationProvider } from "@/context/NotificationContext";
+import { posthog } from "@/src/lib/posthog";
+import * as Notifications from "expo-notifications"
+
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowBanner: true, // required
+    shouldShowList: true,  // required
+    shouldPlaySound: false,
+    shouldSetBadge: false,
+  }),
+});
 
 SplashScreen.preventAutoHideAsync();
 
@@ -15,7 +29,7 @@ if (!publishableKey) {
 
 function AppNavigator() {
   const { isLoaded, isSignedIn } = useAuth();
-  const { signOut } = useClerk();
+  const { user } = useUser();
   const pathname = usePathname();
 
   useEffect(() => {
@@ -46,6 +60,27 @@ function AppNavigator() {
     }
   }, [isLoaded, isSignedIn, pathname]);
 
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn || !user?.id) {
+      return;
+    }
+
+    posthog?.identify(user.id, {
+      $set: {
+        ...(user.primaryEmailAddress?.emailAddress
+          ? { email: user.primaryEmailAddress.emailAddress }
+          : {}),
+        ...(user.fullName ? { name: user.fullName } : {}),
+      },
+    });
+  }, [
+    isLoaded,
+    isSignedIn,
+    user?.fullName,
+    user?.id,
+    user?.primaryEmailAddress?.emailAddress,
+  ]);
+
   return <Stack screenOptions={{ headerShown: false }} />;
 }
 
@@ -69,9 +104,17 @@ export default function RootLayout() {
     return null;
   }
 
+  const appNavigator = <AppNavigator />;
+
   return (
-    <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
-      <AppNavigator />
-    </ClerkProvider>
+    <NotificationProvider>
+      <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
+        {posthog ? (
+          <PostHogProvider client={posthog}>{appNavigator}</PostHogProvider>
+        ) : (
+          appNavigator
+        )}
+      </ClerkProvider>
+    </NotificationProvider>
   );
 }

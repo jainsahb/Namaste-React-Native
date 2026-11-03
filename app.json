@@ -8,7 +8,11 @@
     "scheme": "recurlyrn",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "icon": "./assets/expo.icon",
+      "bundleIdentifier": "com.sahiljain.Recurlyrn",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -17,7 +21,9 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.sahiljain.Recurlyrn",
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "output": "static",
@@ -50,12 +56,20 @@
           ]
         }
       ],
+      "expo-notifications",
       "@clerk/expo",
       "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "e7cbc4de-f8a0-4359-a47b-ee2a1d21aeec"
+      }
+    },
+    "owner": "sahil-jain"
   }
 }
