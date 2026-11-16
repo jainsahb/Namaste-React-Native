@@ -14,6 +14,9 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView as RNSafeAreaView } from "react-native-safe-area-context";
+import { usePostHog } from "posthog-react-native";
+
+import { posthogLog } from "@/src/lib/posthog-logs";
 
 const SafeAreaView = styled(RNSafeAreaView);
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -21,6 +24,7 @@ const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const SignUp = () => {
   const { isLoaded, isSignedIn } = useAuth();
   const { signUp } = useSignUp();
+  const posthog = usePostHog();
 
   const [emailAddress, setEmailAddress] = useState("");
   const [password, setPassword] = useState("");
@@ -58,6 +62,7 @@ const SignUp = () => {
     setIsSubmitting(true);
 
     try {
+      posthog?.capture("sign_up_started");
       const result = await signUp.password({
         emailAddress: trimmedEmail,
         password: trimmedPassword,
@@ -109,6 +114,8 @@ const SignUp = () => {
       }
 
       if (signUp.status === "complete") {
+        posthogLog.info("account_created", { flow: "registration" });
+        posthog?.capture("account_created");
         router.replace("/(tabs)");
         return;
       }
